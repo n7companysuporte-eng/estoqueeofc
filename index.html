@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Controle de Estoque</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+  --azul:#2563eb;
+  --preto:#020617;
+  --cinza:#f8fafc;
+  --branco:#ffffff;
+  --borda:#e5e7eb;
+  --verde:#16a34a;
+  --amarelo:#ca8a04;
+  --vermelho:#dc2626;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  font-family:Inter,Segoe UI,Arial,sans-serif;
+  background:var(--cinza);
+  color:var(--preto);
+}
+
+header{
+  background:linear-gradient(90deg,#020617,#020617);
+  color:var(--branco);
+  padding:22px;
+}
+
+header h1{
+  font-size:22px;
+}
+
+.container{
+  max-width:1400px;
+  margin:30px auto;
+  padding:0 20px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:360px 1fr;
+  gap:24px;
+}
+
+.card{
+  background:var(--branco);
+  border-radius:14px;
+  padding:22px;
+  box-shadow:0 15px 40px rgba(0,0,0,.08);
+}
+
+.card h2{
+  font-size:14px;
+  margin-bottom:18px;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  color:#475569;
+}
+
+label{
+  font-size:13px;
+  font-weight:600;
+}
+
+input, select{
+  width:100%;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid var(--borda);
+  margin:6px 0 14px;
+}
+
+button{
+  padding:10px 14px;
+  border-radius:8px;
+  border:none;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.btn{
+  background:var(--azul);
+  color:var(--branco);
+  width:100%;
+}
+
+.resumo{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:14px;
+  font-weight:600;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th{
+  background:#f1f5f9;
+  padding:10px;
+  font-size:12px;
+  text-align:left;
+}
+
+td{
+  padding:10px;
+  border-bottom:1px solid var(--borda);
+  font-size:14px;
+}
+
+.acoes button{
+  background:none;
+  font-size:16px;
+}
+
+.entrada{color:var(--verde)}
+.saida{color:var(--amarelo)}
+.remover{color:var(--vermelho)}
+
+.baixo{
+  color:var(--vermelho);
+  font-weight:700;
+}
+
+.badge{
+  background:#e0e7ff;
+  color:#1e3a8a;
+  padding:4px 8px;
+  border-radius:20px;
+  font-size:12px;
+  font-weight:600;
+}
+
+.historico{
+  margin-top:30px;
+}
+
+.filtros{
+  display:flex;
+  gap:12px;
+  align-items:end;
+  margin-bottom:18px;
+}
+
+.filtros div{flex:1}
+
+.filtros button{
+  height:40px;
+  background:#020617;
+  color:#fff;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>📦 Controle de Estoque</h1>
+</header>
+
+<div class="container">
+
+  <div class="grid">
+
+    <!-- CADASTRO -->
+    <div class="card">
+      <h2>Cadastrar Produto</h2>
+
+      <label>Produto</label>
+      <input id="nome">
+
+      <label>Categoria</label>
+      <input id="categoria" placeholder="Ex: Bebidas, Papelaria, Limpeza">
+
+      <label>Quantidade Inicial</label>
+      <input id="qtd" type="number">
+
+      <label>Estoque Mínimo</label>
+      <input id="min" type="number">
+
+      <button class="btn" onclick="adicionar()">Adicionar Produto</button>
+    </div>
+
+    <!-- ESTOQUE -->
+    <div class="card">
+      <div class="resumo">
+        <span id="total"></span>
+        <span id="alertas"></span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Categoria</th>
+            <th>Qtd</th>
+            <th>Mín</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="estoque"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="card historico">
+    <h2>Histórico de Movimentações</h2>
+
+    <div class="filtros">
+      <div>
+        <label>Data inicial</label>
+        <input type="date" id="dataInicio">
+      </div>
+      <div>
+        <label>Data final</label>
+        <input type="date" id="dataFim">
+      </div>
+      <button onclick="filtrar()">Filtrar</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Produto</th>
+          <th>Categoria</th>
+          <th>Tipo</th>
+          <th>Qtd</th>
+        </tr>
+      </thead>
+      <tbody id="historico"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+let estoque = JSON.parse(localStorage.getItem("estoque")) || [];
+let historico = JSON.parse(localStorage.getItem("historico")) || [];
+
+function salvar(){
+  localStorage.setItem("estoque",JSON.stringify(estoque));
+  localStorage.setItem("historico",JSON.stringify(historico));
+  render();
+}
+
+function adicionar(){
+  const nome=nomeInput().value.trim();
+  const categoria=categoriaInput().value.trim();
+  const qtd=Number(qtdInput().value);
+  const min=Number(minInput().value);
+  if(!nome||!categoria||isNaN(qtd)||isNaN(min)) return alert("Preencha todos os campos");
+
+  estoque.push({nome,categoria,qtd,min});
+  registrar(nome,categoria,"Cadastro",qtd);
+  salvar();
+  nomeInput().value=categoriaInput().value=qtdInput().value=minInput().value="";
+}
+
+function registrar(produto,categoria,tipo,quantidade){
+  historico.unshift({
+    data:new Date().toISOString(),
+    produto,categoria,tipo,quantidade
+  });
+}
+
+function render(lista=historico){
+  estoqueEl().innerHTML=histEl().innerHTML="";
+  let baixo=0;
+
+  estoque.forEach((p,i)=>{
+    if(p.qtd<=p.min) baixo++;
+    estoqueEl().innerHTML+=`
+      <tr>
+        <td class="${p.qtd<=p.min?'baixo':''}">${p.nome}</td>
+        <td><span class="badge">${p.categoria}</span></td>
+        <td>${p.qtd}</td>
+        <td>${p.min}</td>
+        <td class="acoes">
+          <button class="entrada" onclick="mov(${i},1)">＋</button>
+          <button class="saida" onclick="mov(${i},-1)">－</button>
+          <button class="remover" onclick="remover(${i})">🗑</button>
+        </td>
+      </tr>`;
+  });
+
+  lista.forEach(h=>{
+    histEl().innerHTML+=`
+      <tr>
+        <td>${new Date(h.data).toLocaleString()}</td>
+        <td>${h.produto}</td>
+        <td>${h.categoria}</td>
+        <td>${h.tipo}</td>
+        <td>${h.quantidade}</td>
+      </tr>`;
+  });
+
+  total.innerText=`Produtos: ${estoque.length}`;
+  alertas.innerText=`Estoque baixo: ${baixo}`;
+}
+
+function mov(i,v){
+  if(estoque[i].qtd+v<0) return;
+  estoque[i].qtd+=v;
+  registrar(estoque[i].nome,estoque[i].categoria,v>0?"Entrada":"Saída",1);
+  salvar();
+}
+
+function remover(i){
+  if(confirm("Remover produto?")){
+    registrar(estoque[i].nome,estoque[i].categoria,"Remoção",estoque[i].qtd);
+    estoque.splice(i,1);
+    salvar();
+  }
+}
+
+function filtrar(){
+  const ini=dataInicio.value?new Date(dataInicio.value):null;
+  const fim=dataFim.value?new Date(dataFim.value):null;
+  render(historico.filter(h=>{
+    const d=new Date(h.data);
+    return (!ini||d>=ini)&&(!fim||d<=new Date(fim.setHours(23,59,59)));
+  }));
+}
+
+const nomeInput=()=>document.getElementById("nome");
+const categoriaInput=()=>document.getElementById("categoria");
+const qtdInput=()=>document.getElementById("qtd");
+const minInput=()=>document.getElementById("min");
+const estoqueEl=()=>document.getElementById("estoque");
+const histEl=()=>document.getElementById("historico");
+
+render();
+</script>
+
+</body>
+</html>
